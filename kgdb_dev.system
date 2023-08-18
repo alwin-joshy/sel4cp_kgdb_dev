@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<system>
+
+	<memory_region name="uart" size="0x1000" phys_addr="0x9000000" />
+
+	<protection_domain name="hello_world">
+		<program_image path="hello_world.elf" />
+		<map mr="uart" vaddr="0x4000000" perms="rw" cached="false" setvar_vaddr="uart_base_vaddr" />		
+	</protection_domain>
+</system>
