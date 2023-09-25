@@ -8,7 +8,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <sel4cp.h>
+#include <microkit.h>
 #include "printf.h"
 
 // @ivanv: these are here for convience, should not be here though
@@ -35,8 +35,8 @@
 
 void _putchar(char character);
 
-#define LOG_VMM(...) do{ printf("%s|INFO: ", sel4cp_name); printf(__VA_ARGS__); }while(0)
-#define LOG_VMM_ERR(...) do{ printf("%s|ERROR: ", sel4cp_name); printf(__VA_ARGS__); }while(0)
+#define LOG_VMM(...) do{ printf("%s|INFO: ", microkit_name); printf(__VA_ARGS__); }while(0)
+#define LOG_VMM_ERR(...) do{ printf("%s|ERROR: ", microkit_name); printf(__VA_ARGS__); }while(0)
 
 static char
 decchar(unsigned int v) {
@@ -54,21 +54,21 @@ put8(uint8_t x)
         tmp[--i] = decchar(c);
         x /= 10;
     } while (x);
-    sel4cp_dbg_puts(&tmp[i]);
+    microkit_dbg_puts(&tmp[i]);
 }
 
 // @ivanv: sort this out...
 static void
 reply_to_fault()
 {
-    sel4cp_msginfo msg = sel4cp_msginfo_new(0, 0);
+    microkit_msginfo msg = microkit_msginfo_new(0, 0);
     seL4_Send(4, msg);
 }
 
-static uint64_t get_vmm_id(char *sel4cp_name)
+static uint64_t get_vmm_id(char *microkit_name)
 {
     // @ivanv: Absolute hack
-    return sel4cp_name[4] - '0';
+    return microkit_name[4] - '0';
 }
 
 static void
@@ -123,38 +123,38 @@ print_tcb_regs(seL4_UserContext *ctx) {
 // print_vcpu_regs(uint64_t vcpu_id) {
 //     printf("VMM|INFO: VCPU registers: \n");
 //     /* VM control registers EL1 */
-//     printf("    SCTLR: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_SCTLR));
-//     printf("    TTBR0: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_TTBR0));
-//     printf("    TTBR1: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_TTBR1));
-//     printf("    TCR:   0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_TCR));
-//     printf("    MAIR:  0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_MAIR));
-//     printf("    AMAIR: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_AMAIR));
-//     printf("    CIDR:  0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_CIDR));
+//     printf("    SCTLR: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_SCTLR));
+//     printf("    TTBR0: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_TTBR0));
+//     printf("    TTBR1: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_TTBR1));
+//     printf("    TCR:   0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_TCR));
+//     printf("    MAIR:  0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_MAIR));
+//     printf("    AMAIR: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_AMAIR));
+//     printf("    CIDR:  0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_CIDR));
 //     /* other system registers EL1 */
-//     printf("    ACTLR: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_ACTLR));
-//     printf("    CPACR: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_CPACR));
+//     printf("    ACTLR: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_ACTLR));
+//     printf("    CPACR: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_CPACR));
 //     /* exception handling registers EL1 */
-//     printf("    AFSR0: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_AFSR0));
-//     printf("    AFSR1: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_AFSR1));
-//     printf("    ESR:   0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_ESR));
-//     printf("    FAR:   0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_FAR));
-//     printf("    ISR:   0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_ISR));
-//     printf("    VBAR:  0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_VBAR));
+//     printf("    AFSR0: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_AFSR0));
+//     printf("    AFSR1: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_AFSR1));
+//     printf("    ESR:   0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_ESR));
+//     printf("    FAR:   0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_FAR));
+//     printf("    ISR:   0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_ISR));
+//     printf("    VBAR:  0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_VBAR));
 //     /* thread pointer/ID registers EL0/EL1 */
-//     printf("    TPIDR_EL1: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_TPIDR_EL1));
+//     printf("    TPIDR_EL1: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_TPIDR_EL1));
 // #if CONFIG_MAX_NUM_NODES > 1
 //     /* Virtualisation Multiprocessor ID Register */
-//     printf("    VMPIDR_EL2: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_VMPIDR_EL2));
+//     printf("    VMPIDR_EL2: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_VMPIDR_EL2));
 // #endif
 //     /* general registers x0 to x30 have been saved by traps.S */
-//     printf("    SP_EL1: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_SP_EL1));
-//     printf("    ELR_EL1: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_ELR_EL1));
-//     printf("    SPSR_EL1: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_SPSR_EL1)); // 32-bit // @ivanv what
+//     printf("    SP_EL1: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_SP_EL1));
+//     printf("    ELR_EL1: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_ELR_EL1));
+//     printf("    SPSR_EL1: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_SPSR_EL1)); // 32-bit // @ivanv what
 //     /* generic timer registers, to be completed */
-//     printf("    CNTV_CTL: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_CNTV_CTL));
-//     printf("    CNTV_CVAL: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_CNTV_CVAL));
-//     printf("    CNTVOFF: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_CNTVOFF));
-//     printf("    CNTKCTL_EL1: 0x%lx\n", sel4cp_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_CNTKCTL_EL1));
+//     printf("    CNTV_CTL: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_CNTV_CTL));
+//     printf("    CNTV_CVAL: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_CNTV_CVAL));
+//     printf("    CNTVOFF: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_CNTVOFF));
+//     printf("    CNTKCTL_EL1: 0x%lx\n", microkit_arm_vcpu_read_reg(vcpu_id, seL4_VCPUReg_CNTKCTL_EL1));
 // }
 
 static void *memcpy(void *restrict dest, const void *restrict src, size_t n)

@@ -1,7 +1,7 @@
 # If you would like to choose a different path to the SDK, you can pass it as an
 # argument.
-ifndef SEL4CP_SDK
-	SEL4CP_SDK := ../sel4cp-sdk-1.2.6
+ifndef MIRCOKIT_SDK
+	MICROKIT_SDK := /Users/alwinjoshy/work/sel4cp_custom_sdk/sel4cp/release/microkit-sdk-1.2.6
 endif
 
 SHELL=/bin/bash
@@ -21,8 +21,8 @@ ifndef TOOLCHAIN
 	endif
 endif
 
-BOARD := qemu_arm_virt
-SEL4CP_CONFIG := debug
+BOARD := odroidc2
+MICROKIT_CONFIG := debug
 BUILD_DIR := build
 
 CPU := cortex-a53
@@ -30,20 +30,24 @@ CPU := cortex-a53
 CC := $(TOOLCHAIN)-gcc
 LD := $(TOOLCHAIN)-ld
 AS := $(TOOLCHAIN)-as
-SEL4CP_TOOL ?= $(SEL4CP_SDK)/bin/sel4cp
+MICROKIT_TOOL ?= $(MICROKIT_SDK)/bin/microkit
 
 PRINTF_OBJS := printf.o util.o
-HELLO_WORLD_OBJS := $(PRINTF_OBJS) hello_world.o
+# HELLO_WORLD_OBJS := $(PRINTF_OBJS) hello_world.o
+PING_OBJS := $(PRINTF_OBJS) ping.o
+PONG_OBJS := $(PRINTF_OBJS) pong.o
 
-BOARD_DIR := $(SEL4CP_SDK)/board/$(BOARD)/$(SEL4CP_CONFIG)
+BOARD_DIR := $(MICROKIT_SDK)/board/$(BOARD)/$(MICROKIT_CONFIG)
 
-IMAGES := hello_world.elf
+# IMAGES := hello_world.elf
+IMAGES := ping.elf pong.elf
 # Note that these warnings being disabled is to avoid compilation errors while in the middle of completing each exercise part
 CFLAGS := -mcpu=$(CPU) -mstrict-align -nostdlib -ffreestanding -g3 -Wall -Wno-array-bounds -Wno-unused-variable -Wno-unused-function -Werror -I$(BOARD_DIR)/include -Iinclude -DBOARD_$(BOARD)
 LDFLAGS := -L$(BOARD_DIR)/lib
-LIBS := -lsel4cp -Tsel4cp.ld
+LIBS := -lmicrokit -Tmicrokit.ld
 
-IMAGE_FILE_HW = $(BUILD_DIR)/hello_world.img
+# IMAGE_FILE_HW = $(BUILD_DIR)/hello_world.img
+IMAGE_FILE_PP = $(BUILD_DIR)/ping_pong.img
 IMAGE_FILE = $(BUILD_DIR)/loader.img
 REPORT_FILE = $(BUILD_DIR)/report.txt
 
@@ -61,14 +65,19 @@ run: $(IMAGE_FILE)
    	-serial mon:stdio \
    	-device loader,file=$(IMAGE_FILE),addr=0x70000000,cpu-num=0
 
-system: directories $(BUILD_DIR)/hello_world.elf $(IMAGE_FILE_HW)
+system: directories $(BUILD_DIR)/ping.elf $(BUILD_DIR)/pong.elf $(IMAGE_FILE_PP)
 
 $(BUILD_DIR)/%.o: %.c Makefile
 	$(CC) -c $(CFLAGS) $< -o $@
 
+$(BUILD_DIR)/%.o: include/%.c Makefile
+	$(CC) -c $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/hello_world.elf: $(addprefix $(BUILD_DIR)/, $(HELLO_WORLD_OBJS))
+$(BUILD_DIR)/ping.elf: $(addprefix $(BUILD_DIR)/, $(PING_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
-$(IMAGE_FILE_HW): $(addprefix $(BUILD_DIR)/, $(IMAGES)) kgdb_dev.system
-	$(SEL4CP_TOOL) kgdb_dev.system --search-path $(BUILD_DIR) --board $(BOARD) --config $(SEL4CP_CONFIG) -o $(IMAGE_FILE) -r $(REPORT_FILE)
+$(BUILD_DIR)/pong.elf: $(addprefix $(BUILD_DIR)/, $(PONG_OBJS))
+	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
+
+$(IMAGE_FILE_PP): $(addprefix $(BUILD_DIR)/, $(IMAGES)) kgdb_dev.system
+	$(MICROKIT_TOOL) kgdb_dev.system --search-path $(BUILD_DIR) --board $(BOARD) --config $(MICROKIT_CONFIG) -o $(IMAGE_FILE) -r $(REPORT_FILE)
