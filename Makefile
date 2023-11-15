@@ -38,6 +38,8 @@ PRINTF_OBJS := printf.o util.o
 CLIENT_OBJS := $(PRINTF_OBJS) client.o
 SERVER_OBJS := $(PRINTF_OBJS) server.o
 PROXY_OBJS := $(PRINTF_OBJS) proxy.o
+SECURITY_SERVER_OBJS := $(PRINTF_OBJS) security_server.o
+
 
 BOARD_DIR := $(MICROKIT_SDK)/board/$(BOARD)/$(MICROKIT_CONFIG)
 
@@ -67,7 +69,7 @@ run: $(IMAGE_FILE)
    	-serial mon:stdio \
    	-device loader,file=$(IMAGE_FILE),addr=0x70000000,cpu-num=0
 
-system: directories $(BUILD_DIR)/client.elf $(BUILD_DIR)/server.elf $(BUILD_DIR)/proxy.elf $(IMAGE_FILE_PP)
+system: directories $(BUILD_DIR)/client.elf $(BUILD_DIR)/server.elf $(BUILD_DIR)/proxy.elf $(BUILD_DIR)/security_server.elf $(IMAGE_FILE_PP)
 
 $(BUILD_DIR)/%.o: %.c Makefile
 	$(CC) -c $(CFLAGS) $< -o $@
@@ -82,6 +84,9 @@ $(BUILD_DIR)/server.elf: $(addprefix $(BUILD_DIR)/, $(SERVER_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
 $(BUILD_DIR)/proxy.elf: $(addprefix $(BUILD_DIR)/, $(PROXY_OBJS))
+	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
+
+$(BUILD_DIR)/security_server.elf: $(addprefix $(BUILD_DIR)/, $(SECURITY_SERVER_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
 $(IMAGE_FILE_PP): $(addprefix $(BUILD_DIR)/, $(IMAGES)) kgdb_dev.system

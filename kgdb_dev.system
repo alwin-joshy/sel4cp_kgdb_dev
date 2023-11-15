@@ -12,6 +12,10 @@
 		<program_image path="proxy.elf" />
 	</protection_domain>
 
+	<protection_domain name="security_server" pp="true" priority="4" passive="true">
+		<program_image path="security_server.elf" />
+	</protection_domain>
+
 	<protection_domain name="server" pp="true" priority="3" passive="true">
 		<program_image path="server.elf" />
 		<!-- <map mr="uart" vaddr="0x4000000" perms="rw" cached="false" setvar_vaddr="uart_base_vaddr" /> -->
@@ -25,6 +29,12 @@
 	<channel>
 		<end pd="proxy" id="1" />
 		<end pd="server" id="0" />
+	</channel>
+
+
+	<channel>
+		<end pd="proxy" id="2" />
+		<end pd="security_server" id="0" />
 	</channel>
 
 </system>
