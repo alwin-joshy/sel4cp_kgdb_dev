@@ -37,11 +37,12 @@ PRINTF_OBJS := printf.o util.o
 # HELLO_WORLD_OBJS := $(PRINTF_OBJS) hello_world.o
 CLIENT_OBJS := $(PRINTF_OBJS) client.o
 SERVER_OBJS := $(PRINTF_OBJS) server.o
+PROXY_OBJS := $(PRINTF_OBJS) proxy.o
 
 BOARD_DIR := $(MICROKIT_SDK)/board/$(BOARD)/$(MICROKIT_CONFIG)
 
 # IMAGES := hello_world.elf
-IMAGES := client.elf server.elf
+IMAGES := client.elf server.elf proxy.elf
 # Note that these warnings being disabled is to avoid compilation errors while in the middle of completing each exercise part
 CFLAGS := -O3 -mcpu=$(CPU) -mstrict-align -nostdlib -ffreestanding -g3 -Wall -Wno-array-bounds -Wno-unused-variable -Wno-unused-function -Werror -I$(BOARD_DIR)/include -Iinclude -DBOARD_$(BOARD)
 LDFLAGS := -L$(BOARD_DIR)/lib
@@ -66,7 +67,7 @@ run: $(IMAGE_FILE)
    	-serial mon:stdio \
    	-device loader,file=$(IMAGE_FILE),addr=0x70000000,cpu-num=0
 
-system: directories $(BUILD_DIR)/client.elf $(BUILD_DIR)/server.elf $(IMAGE_FILE_PP)
+system: directories $(BUILD_DIR)/client.elf $(BUILD_DIR)/server.elf $(BUILD_DIR)/proxy.elf $(IMAGE_FILE_PP)
 
 $(BUILD_DIR)/%.o: %.c Makefile
 	$(CC) -c $(CFLAGS) $< -o $@
@@ -78,6 +79,9 @@ $(BUILD_DIR)/client.elf: $(addprefix $(BUILD_DIR)/, $(CLIENT_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
 $(BUILD_DIR)/server.elf: $(addprefix $(BUILD_DIR)/, $(SERVER_OBJS))
+	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
+
+$(BUILD_DIR)/proxy.elf: $(addprefix $(BUILD_DIR)/, $(PROXY_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
 $(IMAGE_FILE_PP): $(addprefix $(BUILD_DIR)/, $(IMAGES)) kgdb_dev.system
