@@ -16,6 +16,8 @@ uintptr_t uart_base_vaddr;
 
 #define REG_PTR(base, offset) ((volatile uint32_t *)((base) + (offset)))
 
+int a = 1;
+
 void uart_init() {
     *REG_PTR(uart_base_vaddr + UART_OFFSET, UART_CTRL) |= UART_CONTROL_TX_ENABLE;
 }
@@ -39,7 +41,13 @@ void uart_put_str(char *str) {
 
 void init() {
 	uart_init();
+	// seL4_DebugEnterKGDB();
 	uart_put_str("Hi! I'm PING!\n");
+	a = a + 1;
+	// int i = 0;
+	// while (true) {
+		// i++;
+	// }
     // arm_sys_null(seL4_SysDebugEnterKGDB);
 	uart_put_str("Ping!\n");    
 	microkit_notify(PINGPONG_CHANNEL);

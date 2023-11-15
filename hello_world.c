@@ -2,43 +2,30 @@
 
 uintptr_t uart_base_vaddr;
 
-#define RHR_MASK 0b111111111
-#define UARTDR 0x000
-#define UARTFR 0x018
-#define UARTIMSC 0x038
-#define UARTICR 0x044
-#define PL011_UARTFR_TXFF (1 << 5)
-#define PL011_UARTFR_RXFE (1 << 4)
+#define UART_OFFSET 0x4c0
+#define UART_WFIFO  0x0
+#define UART_RFIFO  0x4
+#define UART_CTRL 0x8
+#define UART_STATUS 0xC
+
+#define UART_TX_FULL        (1 << 21)
+#define UART_RX_EMPTY       (1 << 20)
+#define UART_CONTROL_TX_ENABLE   (1 << 12)
 
 #define REG_PTR(base, offset) ((volatile uint32_t *)((base) + (offset)))
 
 void uart_init() {
-    *REG_PTR(uart_base_vaddr, UARTIMSC) = 0x50;
-}
-
-
-int uart_get_char() {
-    int ch = 0;
-
-    if ((*REG_PTR(uart_base_vaddr, UARTFR) & PL011_UARTFR_RXFE) == 0) {
-        ch = *REG_PTR(uart_base_vaddr, UARTDR) & RHR_MASK;
-    }
-
-    return ch;
+    *REG_PTR(uart_base_vaddr + UART_OFFSET, UART_CTRL) |= UART_CONTROL_TX_ENABLE;
 }
 
 void uart_put_char(int ch) {
-    while ((*REG_PTR(uart_base_vaddr, UARTFR) & PL011_UARTFR_TXFF) != 0);
+    while ((*REG_PTR(uart_base_vaddr + UART_OFFSET, UART_STATUS) & UART_TX_FULL));
 
-    *REG_PTR(uart_base_vaddr, UARTDR) = ch;
+    /* Add character to the buffer. */
+    *REG_PTR(uart_base_vaddr + UART_OFFSET, UART_WFIFO) = ch;
     if (ch == '\r') {
         uart_put_char('\n');
     }
-}
-
-
-void uart_handle_irq() {
-    *REG_PTR(uart_base_vaddr, UARTICR) = 0x7f0;
 }
 
 void uart_put_str(char *str) {
@@ -52,6 +39,7 @@ void uart_put_str(char *str) {
 void init() {
 	uart_init();
 	uart_put_str("HELLO WORLD!\n");
+    arm_sys_null(seL4_SysDebugEnterKGDB);
 }
 
 void notified(sel4cp_channel channel) {}
