@@ -3,18 +3,18 @@
 
 	<memory_region name="uart" size="0x1000" phys_addr="0xc8100000" />
 
-	<protection_domain name="ping">
-		<program_image path="ping.elf" />
+	<protection_domain name="client">
+		<program_image path="client.elf" />
 		<map mr="uart" vaddr="0x4000000" perms="rw" cached="false" setvar_vaddr="uart_base_vaddr" />
 	</protection_domain>
 
-	<protection_domain name="pong">
-		<program_image path="pong.elf" />
-		<map mr="uart" vaddr="0x4000000" perms="rw" cached="false" setvar_vaddr="uart_base_vaddr" />
+	<protection_domain name="server" pp="true">
+		<program_image path="server.elf" />
+		<!-- <map mr="uart" vaddr="0x4000000" perms="rw" cached="false" setvar_vaddr="uart_base_vaddr" /> -->
 	</protection_domain>
 
 	<channel>
-		<end pd="ping" id="1" />
-		<end pd="pong" id="1" />
+		<end pd="client" id="0" />
+		<end pd="server" id="0" />
 	</channel>
 </system>

@@ -2,6 +2,7 @@
 # argument.
 ifndef MIRCOKIT_SDK
 	MICROKIT_SDK := /Users/alwinjoshy/work/sel4cp_custom_sdk/sel4cp/release/microkit-sdk-1.2.6
+# 	MICROKIT_SDK := /Users/alwinjoshy/work/sel4cp/microkit-sdk-1.2.6
 endif
 
 SHELL=/bin/bash
@@ -22,7 +23,7 @@ ifndef TOOLCHAIN
 endif
 
 BOARD := odroidc2
-MICROKIT_CONFIG := debug
+MICROKIT_CONFIG := release
 BUILD_DIR := build
 
 CPU := cortex-a53
@@ -34,13 +35,13 @@ MICROKIT_TOOL ?= $(MICROKIT_SDK)/bin/microkit
 
 PRINTF_OBJS := printf.o util.o
 # HELLO_WORLD_OBJS := $(PRINTF_OBJS) hello_world.o
-PING_OBJS := $(PRINTF_OBJS) ping.o
-PONG_OBJS := $(PRINTF_OBJS) pong.o
+CLIENT_OBJS := $(PRINTF_OBJS) client.o
+SERVER_OBJS := $(PRINTF_OBJS) server.o
 
 BOARD_DIR := $(MICROKIT_SDK)/board/$(BOARD)/$(MICROKIT_CONFIG)
 
 # IMAGES := hello_world.elf
-IMAGES := ping.elf pong.elf
+IMAGES := client.elf server.elf
 # Note that these warnings being disabled is to avoid compilation errors while in the middle of completing each exercise part
 CFLAGS := -mcpu=$(CPU) -mstrict-align -nostdlib -ffreestanding -g3 -Wall -Wno-array-bounds -Wno-unused-variable -Wno-unused-function -Werror -I$(BOARD_DIR)/include -Iinclude -DBOARD_$(BOARD)
 LDFLAGS := -L$(BOARD_DIR)/lib
@@ -65,7 +66,7 @@ run: $(IMAGE_FILE)
    	-serial mon:stdio \
    	-device loader,file=$(IMAGE_FILE),addr=0x70000000,cpu-num=0
 
-system: directories $(BUILD_DIR)/ping.elf $(BUILD_DIR)/pong.elf $(IMAGE_FILE_PP)
+system: directories $(BUILD_DIR)/client.elf $(BUILD_DIR)/server.elf $(IMAGE_FILE_PP)
 
 $(BUILD_DIR)/%.o: %.c Makefile
 	$(CC) -c $(CFLAGS) $< -o $@
@@ -73,10 +74,10 @@ $(BUILD_DIR)/%.o: %.c Makefile
 $(BUILD_DIR)/%.o: include/%.c Makefile
 	$(CC) -c $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/ping.elf: $(addprefix $(BUILD_DIR)/, $(PING_OBJS))
+$(BUILD_DIR)/client.elf: $(addprefix $(BUILD_DIR)/, $(CLIENT_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
-$(BUILD_DIR)/pong.elf: $(addprefix $(BUILD_DIR)/, $(PONG_OBJS))
+$(BUILD_DIR)/server.elf: $(addprefix $(BUILD_DIR)/, $(SERVER_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
 $(IMAGE_FILE_PP): $(addprefix $(BUILD_DIR)/, $(IMAGES)) kgdb_dev.system
