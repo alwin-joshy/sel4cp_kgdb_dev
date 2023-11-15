@@ -3,18 +3,28 @@
 
 	<memory_region name="uart" size="0x1000" phys_addr="0xc8100000" />
 
-	<protection_domain name="client">
+	<protection_domain name="client" priority="1">
 		<program_image path="client.elf" />
 		<map mr="uart" vaddr="0x4000000" perms="rw" cached="false" setvar_vaddr="uart_base_vaddr" />
 	</protection_domain>
 
-	<protection_domain name="server" pp="true" passive="true">
+	<protection_domain name="proxy" pp="true" priority="2">
+		<program_image path="proxy.elf" />
+	</protection_domain>
+
+	<protection_domain name="server" pp="true" priority="3">
 		<program_image path="server.elf" />
 		<!-- <map mr="uart" vaddr="0x4000000" perms="rw" cached="false" setvar_vaddr="uart_base_vaddr" /> -->
 	</protection_domain>
 
 	<channel>
 		<end pd="client" id="0" />
+		<end pd="proxy" id="0" />
+	</channel>
+
+	<channel>
+		<end pd="proxy" id="1" />
 		<end pd="server" id="0" />
 	</channel>
+
 </system>

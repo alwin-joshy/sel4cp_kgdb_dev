@@ -133,7 +133,7 @@ void init() {
 
 	uint64_t start, end;
 	uart_put_str("## BEGIN benchmark results ##\n");
-	uart_put_str("No proxy benchmark\n");
+	uart_put_str("proxy benchmark\n");
 	for (int i = 0; i < 100; i++) {
 		microkit_mr_set(0, 0);
 		microkit_mr_set(1, 1);
