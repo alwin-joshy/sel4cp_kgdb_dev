@@ -12,11 +12,11 @@
 		<program_image path="proxy.elf" />
 	</protection_domain>
 
-	<protection_domain name="security_server" pp="true" priority="4" passive="true">
+	<protection_domain name="security_server" pp="true" priority="4" passive="false">
 		<program_image path="security_server.elf" />
 	</protection_domain>
 
-	<protection_domain name="server" pp="true" priority="3" passive="true">
+	<protection_domain name="server" pp="true" priority="3" passive="false">
 		<program_image path="server.elf" />
 		<!-- <map mr="uart" vaddr="0x4000000" perms="rw" cached="false" setvar_vaddr="uart_base_vaddr" /> -->
 	</protection_domain>

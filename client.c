@@ -148,7 +148,9 @@ void init() {
 		if (microkit_msginfo_get_label(msginfo) != 0 ||
 			microkit_mr_get(0) != 2 || microkit_mr_get(1) != 1 || microkit_mr_get(2) != 0) {
 			
-			uart_put_str("Unexpected reply!\n");
+			uart_put_str("Unexpected reply!");
+			puthex64(microkit_msginfo_get_label(msginfo));
+			uart_put_str("\n");
 		}
 		// } else {
 			// uart_put_str("all is gut!\n");
