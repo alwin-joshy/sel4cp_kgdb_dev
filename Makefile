@@ -23,7 +23,7 @@ ifndef TOOLCHAIN
 endif
 
 BOARD := odroidc2
-MICROKIT_CONFIG := release
+MICROKIT_CONFIG := benchmark
 BUILD_DIR := build
 
 CPU := cortex-a53
@@ -43,7 +43,7 @@ BOARD_DIR := $(MICROKIT_SDK)/board/$(BOARD)/$(MICROKIT_CONFIG)
 # IMAGES := hello_world.elf
 IMAGES := client.elf server.elf
 # Note that these warnings being disabled is to avoid compilation errors while in the middle of completing each exercise part
-CFLAGS := -mcpu=$(CPU) -mstrict-align -nostdlib -ffreestanding -g3 -Wall -Wno-array-bounds -Wno-unused-variable -Wno-unused-function -Werror -I$(BOARD_DIR)/include -Iinclude -DBOARD_$(BOARD)
+CFLAGS := -O3 -mcpu=$(CPU) -mstrict-align -nostdlib -ffreestanding -g3 -Wall -Wno-array-bounds -Wno-unused-variable -Wno-unused-function -Werror -I$(BOARD_DIR)/include -Iinclude -DBOARD_$(BOARD)
 LDFLAGS := -L$(BOARD_DIR)/lib
 LIBS := -lmicrokit -Tmicrokit.ld
 

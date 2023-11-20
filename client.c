@@ -138,8 +138,8 @@ void init() {
 		microkit_mr_set(0, 0);
 		microkit_mr_set(1, 1);
 		microkit_mr_set(2, 2);
-		READ_CCNT(start);
 		microkit_msginfo msginfo = microkit_msginfo_new(0, 3);
+		READ_CCNT(start);
 		msginfo = microkit_ppcall(SERVER_CHANNEL, msginfo);
 		READ_CCNT(end);
 		puthex64(end - start);
@@ -148,8 +148,12 @@ void init() {
 		if (microkit_msginfo_get_label(msginfo) != 0 ||
 			microkit_mr_get(0) != 2 || microkit_mr_get(1) != 1 || microkit_mr_get(2) != 0) {
 			
-			microkit_dbg_puts("Unexpected reply!\n");
+			uart_put_str("Unexpected reply!\n");
 		}
+		// } else {
+			// uart_put_str("all is gut!\n");
+		// }
+
 	}
 	uart_put_str("\n## END benchmark results ##\n");
 }
