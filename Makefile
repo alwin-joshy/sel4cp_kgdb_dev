@@ -2,7 +2,7 @@
 # argument.
 ifndef MIRCOKIT_SDK
 	MICROKIT_SDK := /Users/alwinjoshy/work/sel4cp_custom_sdk/sel4cp/release/microkit-sdk-1.2.6
-# 	MICROKIT_SDK := /Users/alwinjoshy/work/sel4cp/microkit-sdk-1.2.6
+ 	#MICROKIT_SDK := /Users/alwinjoshy/work/sel4cp/microkit-sdk-1.2.6
 endif
 
 SHELL=/bin/bash
@@ -23,7 +23,7 @@ ifndef TOOLCHAIN
 endif
 
 BOARD := odroidc2
-MICROKIT_CONFIG := benchmark
+MICROKIT_CONFIG := release
 BUILD_DIR := build
 
 CPU := cortex-a53
