@@ -32,15 +32,16 @@ LD := $(TOOLCHAIN)-ld
 AS := $(TOOLCHAIN)-as
 MICROKIT_TOOL ?= $(MICROKIT_SDK)/bin/microkit
 
-PRINTF_OBJS := printf.o util.o
+PRINTF_OBJS := printf.o util.o uart.o
 # HELLO_WORLD_OBJS := $(PRINTF_OBJS) hello_world.o
 PING_OBJS := $(PRINTF_OBJS) ping.o
 PONG_OBJS := $(PRINTF_OBJS) pong.o
+GDB_OBJS := $(PRINTF_OBJS) gdb.o
 
 BOARD_DIR := $(MICROKIT_SDK)/board/$(BOARD)/$(MICROKIT_CONFIG)
 
 # IMAGES := hello_world.elf
-IMAGES := ping.elf pong.elf
+IMAGES := ping.elf pong.elf gdb.elf
 # Note that these warnings being disabled is to avoid compilation errors while in the middle of completing each exercise part
 CFLAGS := -mcpu=$(CPU) -mstrict-align -nostdlib -ffreestanding -g3 -Wall -Wno-array-bounds -Wno-unused-variable -Wno-unused-function -Werror -I$(BOARD_DIR)/include -Iinclude -DBOARD_$(BOARD)
 LDFLAGS := -L$(BOARD_DIR)/lib
@@ -65,7 +66,7 @@ run: $(IMAGE_FILE)
    	-serial mon:stdio \
    	-device loader,file=$(IMAGE_FILE),addr=0x70000000,cpu-num=0
 
-system: directories $(BUILD_DIR)/ping.elf $(BUILD_DIR)/pong.elf $(IMAGE_FILE_PP)
+system: directories $(BUILD_DIR)/ping.elf $(BUILD_DIR)/pong.elf $(BUILD_DIR)/gdb.elf $(IMAGE_FILE_PP)
 
 $(BUILD_DIR)/%.o: %.c Makefile
 	$(CC) -c $(CFLAGS) $< -o $@
@@ -77,6 +78,9 @@ $(BUILD_DIR)/ping.elf: $(addprefix $(BUILD_DIR)/, $(PING_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
 $(BUILD_DIR)/pong.elf: $(addprefix $(BUILD_DIR)/, $(PONG_OBJS))
+	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
+
+$(BUILD_DIR)/gdb.elf: $(addprefix $(BUILD_DIR)/, $(GDB_OBJS))
 	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
 
 $(IMAGE_FILE_PP): $(addprefix $(BUILD_DIR)/, $(IMAGES)) kgdb_dev.system
