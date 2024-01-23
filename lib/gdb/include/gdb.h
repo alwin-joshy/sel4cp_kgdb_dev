@@ -3,10 +3,19 @@
 //
 #pragma once
 
+#include <uart.h>
+#include <sel4/sel4_arch/types.h>
+#include <microkit.h>
+
+
+
+#define MAX_ELF_NAME 32
+#define MAX_SW_BREAKS 10
+
 /* Bookkeeping for watchpoints */
 typedef struct watchpoint {
     uint64_t addr;
-    watch_type_t type;
+    seL4_BreakpointAccess type;
 } hw_watch_t;
 
 /* Bookkeeping for hardware breakpoints */
@@ -30,6 +39,10 @@ typedef struct inferior {
     sw_break_t software_breakpoints[MAX_SW_BREAKS];
     hw_break_t hardware_breakpoints[seL4_NumExclusiveBreakpoints];
     hw_watch_t hardware_watchpoints[seL4_NumExclusiveWatchpoints];
-    bool_t ss_enabled;
+    bool ss_enabled;
 } inferior_t;
+
+int gdb_register_initial(microkit_id id, char* elf_name);
+int gdb_register_inferior(microkit_id id, char *elf_name);
+void gdb_event_loop();
 

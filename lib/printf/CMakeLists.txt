@@ -1,2 +1,2 @@
 include_directories(include)
-add_library(printf printf.c)
+add_library(printf STATIC printf.c)

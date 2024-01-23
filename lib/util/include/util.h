@@ -189,6 +189,8 @@ static void assert_fail(
         } \
     } while(0)
 
-int hex(unsigned char c);
+int hexchar_to_int(unsigned char c);
+unsigned char int_to_hexchar(int i);
+char *hexstr_to_int(char *hex_str, int max_bytes, seL4_Word *val);
 char *mem2hex(char *mem, char *buf, int size);
 char *hex2mem(char *buf, char *mem, int size);

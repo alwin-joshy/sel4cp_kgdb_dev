@@ -1,2 +1,2 @@
-include_directories(include)
-add_library(util util.c)
+add_library(util STATIC util.c include/util.h)
+target_include_directories(util PUBLIC include)

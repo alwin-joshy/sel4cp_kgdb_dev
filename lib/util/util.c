@@ -30,7 +30,7 @@ void __assert_func(const char *file, int line, const char *function, const char 
 }
 
 /* Convert a character (representing a hexadecimal) to its integer equivalent */
-int hex(unsigned char c)
+int hexchar_to_int(unsigned char c)
 {
     if (c >= 'a' && c <= 'f') {
         return c - 'a' + 10;
@@ -42,14 +42,38 @@ int hex(unsigned char c)
     return -1;
 }
 
+unsigned char int_to_hexchar(int i) {
+    if (i < 0 || i > 15) {
+        return (unsigned char) -1;
+    }
+
+    return hexchars[i];
+}
+
+char *hexstr_to_int(char *hex_str, int max_bytes, seL4_Word *val)
+{
+    int curr_bytes = 0;
+    while (*hex_str && curr_bytes < max_bytes) {
+        uint8_t byte = *hex_str;
+        byte = hexchar_to_int(byte);
+        if (byte == (uint8_t) -1) {
+            return hex_str;
+        }
+        *val = (*val << 4) | (byte & 0xF);
+        curr_bytes++;
+        hex_str++;
+    }
+    return hex_str;
+}
+
 /* Convert a buffer to a hexadecimal string */
 char *mem2hex(char *mem, char *buf, int size) {
     int i;
     unsigned char c;
     for (i = 0; i < size; i++, mem++) {
         c = *mem;
-        *buf++ = hexchars[c >> 4];
-        *buf++ = hexchars[c % 16];
+        *buf++ = int_to_hexchar(c >> 4);
+        *buf++ = int_to_hexchar(c % 16);
     }
     *buf = 0;
     return buf;
@@ -61,8 +85,8 @@ char *hex2mem(char *buf, char *mem, int size) {
     unsigned char c;
 
     for (i = 0; i < size; i++, mem++) {
-        c = hex(*buf++) << 4;
-        c += hex(*buf++);
+        c = hexchar_to_int(*buf++) << 4;
+        c += hexchar_to_int(*buf++);
         *mem = c;
     }
     return buf;

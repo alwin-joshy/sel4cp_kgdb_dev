@@ -27,7 +27,7 @@ link_directories(${BOARD_DIR}/lib)
 add_library(microkit STATIC IMPORTED)
 set_target_properties(microkit PROPERTIES IMPORTED_LOCATION ${BOARD_DIR}/lib/libmicrokit.a)
 
-#add_subdirectory(lib/gdb)
+add_subdirectory(lib/gdb)
 add_subdirectory(lib/printf)
 add_subdirectory(lib/uart)
 add_subdirectory(lib/util)

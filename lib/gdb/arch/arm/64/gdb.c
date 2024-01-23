@@ -1,4 +1,3 @@
-#include "gdb.h"
 
 /* Convert registers to a hex string */
 // @alwin: This is rather unpleasant, but the way the seL4_UserContext struct is formatted is annoying
@@ -89,7 +88,16 @@ char *hex2regs(seL4_UserContext *regs, char *buf)
     buf = hex2mem((char *) buf, &regs->spsr, sizeof(seL4_Word) / 2);
 }
 
-bool_t set_hardware_breakpoint(inferior_t *inferior, seL4_Word address) {
+// @alwin: finish this off
+bool set_software_breakpoint(inferior_t *inferior, seL4_Word address) {
+    return true;
+}
+
+bool unset_software_breakpoint(inferior_t *inferior, seL4_Word address) {
+    return true;
+}
+
+bool set_hardware_breakpoint(inferior_t *inferior, seL4_Word address) {
     int i = 0;
     for (i = 0; i < seL4_NumExclusiveBreakpoints; i++) {
         if (!thread_info->hardware_breakpoints[i].addr) break;
@@ -101,7 +109,7 @@ bool_t set_hardware_breakpoint(inferior_t *inferior, seL4_Word address) {
                            seL4_InstructionBreakpoint, 0, seL4_BreakOnRead);
 }
 
-bool_t unset_hardware_breakpoint(inferior_t *inferior, seL4_Word address) {
+bool unset_hardware_breakpoint(inferior_t *inferior, seL4_Word address) {
     int i = 0;
     for (i = 0; i < seL4_NumExclusiveBreakpoints; i++) {
         if (inferior->hardware_breakpoints[i].addr == addr) {
@@ -116,8 +124,8 @@ bool_t unset_hardware_breakpoint(inferior_t *inferior, seL4_Word address) {
     return true;
 }
 
-bool_t set_hardware_watchpoint(inferior_t *inferior, seL4_Word address,
-                               watch_type_t type) {
+bool set_hardware_watchpoint(inferior_t *inferior, seL4_Word address,
+                             seL4_BreakpointAccess type);
     int i = 0;
     for (i = 0; i < seL4_NumExclusiveWatchpoints; i++) {
         if (!thread_info->hardware_watchpoints[i].addr) break;
@@ -129,10 +137,13 @@ bool_t set_hardware_watchpoint(inferior_t *inferior, seL4_Word address,
                            seL4DataBreakpoint, 0, type);
 }
 
-bool_t unset_hardware_watchpoint(inferior_t *inferior, seL4_Word address) {
+bool unset_hardware_watchpoint(inferior_t *inferior, seL4_Word address,
+                               seL4_BreakpointAccess type) {
     int i = 0;
     for (i = 0; i < seL4_NumExclusiveWatchpoints; i++) {
-        if (inferior->hardware_watchpoints[i].addr == addr) {
+        if (inferior->hardware_watchpoints[i].addr == addr &&
+            inferior->hardware_watchpoints[i].type == type) {
+
             inferior->hardware_watchpoints[i].addr = 0;
             break;
         }
@@ -144,7 +155,7 @@ bool_t unset_hardware_watchpoint(inferior_t *inferior, seL4_Word address) {
     return true;
 }
 
-bool_t enable_single_step(inferior_t *inferior) {
+bool enable_single_step(inferior_t *inferior) {
     if (inferior->ss_enabled) {
         return false;
     }
@@ -153,7 +164,7 @@ bool_t enable_single_step(inferior_t *inferior) {
     return true;
 }
 
-bool_t disable_single_step(inferior_t *inferior) {
+bool disable_single_step(inferior_t *inferior) {
     if (!inferior->ss_enabled) {
         return false;
     }
