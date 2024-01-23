@@ -9,7 +9,7 @@
 
 #include <stdint.h>
 #include <microkit.h>
-#include "printf.h"
+#include "../../printf/include/printf.h"
 
 // @ivanv: these are here for convience, should not be here though
 #define GUEST_ID 0
@@ -189,3 +189,6 @@ static void assert_fail(
         } \
     } while(0)
 
+int hex(unsigned char c);
+char *mem2hex(char *mem, char *buf, int size);
+char *hex2mem(char *buf, char *mem, int size);

@@ -1,5 +1,5 @@
 #include <microkit.h>
-#include "include/uart.h"
+#include "../../lib/uart/include/uart.h"
 
 #define PINGPONG_CHANNEL 1
 

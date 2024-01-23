@@ -1,5 +1,5 @@
 
-#include "uart.h"
+#include "include/uart.h"
 
 uintptr_t uart_base_vaddr;
 
@@ -8,9 +8,9 @@ void uart_init() {
 }
 
 int uart_get_char() {
-    while ((*UART_REG(UART_STATUS) & UART_RX_EMPTY));
+    while ((*REG_PTR(uart_base_vaddr + UART_OFFSET, UART_STATUS) & UART_RX_EMPTY));
 
-    return *UART_REG(UART_RFIFO);
+    return *REG_PTR(uart_base_vaddr + UART_OFFSET, UART_RFIFO);
 }
 
 void uart_put_char(int ch) {

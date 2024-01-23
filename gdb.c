@@ -1,4 +1,4 @@
-#include "include/uart.h"
+#include "lib/uart/include/uart.h"
 
 #define BUFSIZE 1024
 #define MAX_PDS 64
@@ -12,46 +12,9 @@ static char input[BUFSIZE];
 /* Output buffer */
 static char output[BUFSIZE];
 
-/* GDB uses 'inferiors' to distinguish between different processes (in our case PDs) */
-typedef struct inferior {
-    microkit_id micro_id;
-    /* The id in GDB cannot be 0, because this has a special meaning in GDB */
-    uint16_t gdb_id;
-    seL4_CPtr tcb;
-    char elf_name[MAX_ELF_NAME];
-} inferior_t;
-
-
 int num_threads = 0;
 inferior_t inferiors[MAX_PDS];
 inferior_t *target_inferior = NULL;
-
-
-/* Convert a buffer to a hexadecimal string */
-static char *mem2hex(char *mem, char *buf, int size) {
-    int i;
-    unsigned char c;
-    for (i = 0; i < size; i++, mem++) {
-        c = *mem;
-        *buf++ = hexchars[c >> 4];
-        *buf++ = hexchars[c % 16];
-    }
-    *buf = 0;
-    return buf;
-}
-
-/* Fill a buffer based with the contents of a hex string */
-static char *hex2mem(char *buf, char *mem, int size) {
-    int i;
-    unsigned char c;
-
-    for (i = 0; i < size; i++, mem++) {
-        c = hex(*buf++) << 4;
-        c += hex(*buf++);
-        *mem = c;
-    }
-    return buf;
-}
 
 static char *kgdb_get_packet(void) {
     char c;
@@ -127,102 +90,6 @@ retry:
     return NULL;
 }
 
-typedef struct register_set {
-    uint64_t registers_64[NUM_REGS - 1];
-    uint32_t cpsr;
-} register_set_t;
-
-
-/* Convert registers to a hex string */
-// @alwin: This is rather unpleasant, but the way the seL4_UserContext struct is formatted is annoying
-char *regs2hex(seL4_UserContext *regs, char *buf)
-{
-    /* First we handle the 64 bit general purpose registers*/
-    buf = mem2hex((char *) &regs->x0, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x1, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x2, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x3, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x4, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x5, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x7, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x8, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x9, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x10, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x11, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x12, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x13, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x14, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x15, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x16, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x17, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x18, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x19, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x20, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x21, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x22, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x23, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x24, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x25, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x26, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x27, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x28, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x29, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->x30, buf, sizeof(seL4_Word));
-
-    /* Now the stack pointer and the instruction pointer */
-    buf = mem2hex((char *) &regs->sp, buf, sizeof(seL4_Word));
-    buf = mem2hex((char *) &regs->pc, buf, sizeof(seL4_Word));
-
-    /* Finally the cpsr */
-    return mem2hex((char *) &regs->spsr, buf, sizeof(seL4_Word) / 2);
-}
-
-/* Convert registers to a hex string */
-// @alwin: This is rather unpleasant, but the way the seL4_UserContext struct is formatted is annoying
-char *hex2regs(seL4_UserContext *regs, char *buf)
-{
-    /* First we handle the 64 bit general purpose registers*/
-    buf = hex2mem((char *) buf, &regs->x0, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x1, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x2, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x3, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x4, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x5, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x6, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x7, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x8, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x9, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x10, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x11, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x12, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x13, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x14, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x15, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x16, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x17, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x18, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x19, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x20, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x21, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x22, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x23, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x24, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x25, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x26, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x27, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x28, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x29, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x30, sizeof(seL4_Word));
-
-    /* Now the stack pointer and the instruction pointer */
-    buf = hex2mem((char *) buf, &regs->sp, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->pc, sizeof(seL4_Word));
-
-    /* Finally the cpsr */
-    buf = hex2mem((char *) buf, &regs->spsr, sizeof(seL4_Word) / 2);
-}
-
-
 /* Read registers */
 static void handle_read_regs(void) {
     seL4_UserContext context;
@@ -232,13 +99,100 @@ static void handle_read_regs(void) {
     regs2hex(&regs, output);
 }
 
-
 static void handle_write_regs(char *ptr) {
+    assert(*ptr++ == 'G');
+
     seL4_UserContext regs;
     hex2regs(&regs, ptr);
     int error = seL4_TCB_WriteRegisters(target_thread->tcb, false, 0,
                                        sizeof(seL4_UserContext) / sizeof(seL4_Word), &context);
     strlcpy(kgdb_out, "OK", sizeof(kgdb_out));
+}
+
+static void handle_query(char *ptr) {
+    if (strncmp(ptr, "qSupported", 10) == 0) {
+        /* TODO: This may eventually support more features */
+        snprintf(kgdb_out, sizeof(kgdb_out),
+                 "qSupported:PacketSize=%lx;QThreadEvents+;swbreak+;hwbreak+;vContSupported+;fork-events+;exec-events+;multiprocess+;", sizeof(kgdb_in));
+    } else if (strncmp(ptr, "qfThreadInfo", 12) == 0) {
+        char *out_ptr = kgdb_out;
+        *out_ptr++ = 'm';
+        for (uint8_t i = 0; i < 64; i++) {
+            if (threads[i].tcb != NULL) {
+                if (i != 0) {
+                    *out_ptr++ = ',';
+                }
+                *out_ptr++ = 'p';
+                out_ptr = k_mem2hex((char *) &threads[i].gdb_id, out_ptr, sizeof(uint8_t));
+                strlcpy(out_ptr, ".1", 3);
+                /* @alwin: this is stupid, be better */
+                out_ptr += 2;
+            } else {
+                break;
+            }
+        }
+    } else if (strncmp(ptr, "qsThreadInfo", 12) == 0) {
+        strlcpy(kgdb_out, "l", sizeof(kgdb_out));
+    } else if (strncmp(ptr, "qC", 2) == 0) {
+        strlcpy(kgdb_out, "QCp1.1", sizeof(kgdb_out));
+    } else if (strncmp(ptr, "qSymbol", 7) == 0) {
+        strlcpy(kgdb_out, "OK", sizeof(kgdb_out));
+    } else if (strncmp(ptr, "qTStatus", 8) == 0) {
+        /* TODO: THis should eventually work in the non startup case */
+        strlcpy(kgdb_out, "T0", sizeof(kgdb_out));
+    } else if (strncmp(ptr, "qAttached", 9) == 0) {
+        strlcpy(kgdb_out, "1", sizeof(kgdb_out));
+    }
+}
+
+static void handle_configure_debug_events(char *ptr) {
+    seL4_Word addr, size;
+    bool_t success;
+
+    if (!parse_breakpoint_format(ptr, &addr, &size)) {
+        strlcpy(kgdb_out, "E01", sizeof(kgdb_out));
+        return;
+    }
+
+    /* Breakpoints and watchpoints */
+
+    if (strncmp(ptr, "Z0", 2) == 0) {
+        /* Set a software breakpoint using binary rewriting */
+        success = set_software_breakpoint(target_thread, addr);
+    } else if (strncmp(ptr, "z0", 2) == 0) {
+        /* Unset a software breakpoint */
+        success = unset_software_breakpoint(target_thread, addr);
+    } else if (strncmp(ptr, "Z1", 2) == 0) {
+        /* Set a hardware breakpoint */
+        success = set_hardware_breakpoint(target_thread, addr);
+    } else if (strncmp(ptr, "z1", 2) == 0) {
+        /* Unset a hardware breakpoint */
+        success = unset_hardware_breakpoint(target_thread, addr);
+    } else if (strncmp(ptr, "Z2", 2) == 0) {
+        /* Set a write watchpoint */
+        success = set_watchpoint(target_thread, addr, WATCHPOINT_WRITE);
+    } else if (strncmp(ptr, "z2", 2) == 0) {
+        /* Unset a write watchpoint */
+        success = unset_watchpoint(target_thread, addr);
+    } else if (strncmp(ptr, "Z3", 2) == 0) {
+        /* Set a read watchpoint */
+        success = set_watchpoint(target_thread, addr, WATCHPOINT_READ);
+    } else if (strncmp(ptr, "z3", 2) == 0) {
+        /* Unset a read watchpoint */
+        success = unset_watchpoint(target_thread, addr);
+    } else if (strncmp(ptr, "Z4", 2) == 0) {
+        /* Set an access watchpoint */
+        success = set_watchpoint(target_thread, addr, WATCHPOINT_ACCESS);
+    } else if (strncmp(ptr, "z4", 2) == 0) {
+        /* Unset an access watchpoint */
+        success = unset_watchpoint(target_thread, addr);
+    }
+
+    if (!success) {
+        strlcpy(kgdb_out, "E01", sizeof(kgdb_out));
+    } else {
+        strlcpy(kgdb_out, "OK", sizeof(kgdb_out));
+    }
 }
 
 
@@ -251,7 +205,7 @@ void gdb_event_loop() {
         if (*ptr == 'g') {
             handle_read_regs();
         } else if (*ptr == 'G') {
-            handle_write_regs(ptr++);
+            handle_write_regs(ptr);
         } else if (*ptr == 'm') {
             handle_read_mem(ptr);
         } else if (*ptr == 'M') {
