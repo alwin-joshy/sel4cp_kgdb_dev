@@ -1,3 +1,6 @@
+#include <arch/arm/64/gdb.h>
+#include <gdb.h>
+#include <util.h>
 
 /* Convert registers to a hex string */
 // @alwin: This is rather unpleasant, but the way the seL4_UserContext struct is formatted is annoying
@@ -48,44 +51,46 @@ char *regs2hex(seL4_UserContext *regs, char *buf)
 char *hex2regs(seL4_UserContext *regs, char *buf)
 {
     /* First we handle the 64 bit general purpose registers*/
-    buf = hex2mem((char *) buf, &regs->x0, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x1, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x2, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x3, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x4, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x5, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x6, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x7, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x8, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x9, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x10, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x11, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x12, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x13, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x14, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x15, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x16, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x17, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x18, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x19, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x20, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x21, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x22, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x23, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x24, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x25, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x26, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x27, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x28, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x29, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->x30, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x0, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x1, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x2, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x3, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x4, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x5, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x6, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x7, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x8, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x9, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x10, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x11, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x12, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x13, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x14, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x15, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x16, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x17, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x18, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x19, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x20, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x21, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x22, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x23, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x24, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x25, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x26, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x27, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x28, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x29, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->x30, sizeof(seL4_Word));
 
     /* Now the stack pointer and the instruction pointer */
-    buf = hex2mem((char *) buf, &regs->sp, sizeof(seL4_Word));
-    buf = hex2mem((char *) buf, &regs->pc, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->sp, sizeof(seL4_Word));
+    buf = hex2mem(buf, (char *) &regs->pc, sizeof(seL4_Word));
 
     /* Finally the cpsr */
-    buf = hex2mem((char *) buf, &regs->spsr, sizeof(seL4_Word) / 2);
+    buf = hex2mem(buf, (char *) &regs->spsr, sizeof(seL4_Word) / 2);
+
+    return buf;
 }
 
 // @alwin: finish this off
@@ -100,19 +105,22 @@ bool unset_software_breakpoint(inferior_t *inferior, seL4_Word address) {
 bool set_hardware_breakpoint(inferior_t *inferior, seL4_Word address) {
     int i = 0;
     for (i = 0; i < seL4_NumExclusiveBreakpoints; i++) {
-        if (!thread_info->hardware_breakpoints[i].addr) break;
+        if (!inferior->hardware_breakpoints[i].addr) break;
     }
 
-    if (i === seL4_NumExclusiveBreakpoints) return false;
+    if (i == seL4_NumExclusiveBreakpoints) return false;
 
     seL4_TCB_SetBreakpoint(inferior->tcb, seL4_FirstBreakpoint + i, address,
                            seL4_InstructionBreakpoint, 0, seL4_BreakOnRead);
+
+    // @alwin check ret value
+    return true;
 }
 
 bool unset_hardware_breakpoint(inferior_t *inferior, seL4_Word address) {
     int i = 0;
     for (i = 0; i < seL4_NumExclusiveBreakpoints; i++) {
-        if (inferior->hardware_breakpoints[i].addr == addr) {
+        if (inferior->hardware_breakpoints[i].addr == address) {
             inferior->hardware_breakpoints[i].addr = 0;
             break;
         }
@@ -125,23 +133,26 @@ bool unset_hardware_breakpoint(inferior_t *inferior, seL4_Word address) {
 }
 
 bool set_hardware_watchpoint(inferior_t *inferior, seL4_Word address,
-                             seL4_BreakpointAccess type);
+                             seL4_BreakpointAccess type) {
     int i = 0;
     for (i = 0; i < seL4_NumExclusiveWatchpoints; i++) {
-        if (!thread_info->hardware_watchpoints[i].addr) break;
+        if (!inferior->hardware_watchpoints[i].addr) break;
     }
 
-    if (i === seL4_NumExclusiveWatchpoints) return false;
+    if (i == seL4_NumExclusiveWatchpoints) return false;
 
+    // @alwin: check ret value
     seL4_TCB_SetBreakpoint(inferior->tcb, seL4_FirstWatchpoint + i, address,
-                           seL4DataBreakpoint, 0, type);
+                           seL4_DataBreakpoint, 0, type);
+
+    return true;
 }
 
 bool unset_hardware_watchpoint(inferior_t *inferior, seL4_Word address,
                                seL4_BreakpointAccess type) {
     int i = 0;
     for (i = 0; i < seL4_NumExclusiveWatchpoints; i++) {
-        if (inferior->hardware_watchpoints[i].addr == addr &&
+        if (inferior->hardware_watchpoints[i].addr == address &&
             inferior->hardware_watchpoints[i].type == type) {
 
             inferior->hardware_watchpoints[i].addr = 0;
@@ -171,4 +182,64 @@ bool disable_single_step(inferior_t *inferior) {
 
     seL4_TCB_ConfigureSingleStepping(inferior->tcb, 0, 0);
     return true;
+}
+
+ char *inf_mem2hex(inferior_t *inferior, seL4_Word mem, char *buf, int size)
+{
+    int i;
+    unsigned char c;
+
+    seL4_Word curr_word = 0;
+    for (i = 0; i < size; i++) {
+        if (i % sizeof(seL4_Word) == 0) {
+            // @alwin: I think this should actually use a vspace cap
+            readWordFromVSpace_ret_t ret = readWordFromVSpace(inferior->tcb, mem);
+            if (ret.status != EXCEPTION_NONE) {
+                return NULL;
+            }
+
+            curr_word = ret.value;
+            mem += sizeof(seL4_Word);
+        }
+
+        c = *(((char *) &curr_word) + (i % sizeof(seL4_Word)));
+        *buf++ = int_to_hexchar(c >> 4);
+        *buf++ = int_to_hexchar(c % 16);
+    }
+
+    *buf = 0;
+    return buf;
+}
+
+/**
+ * Returns a ptr to the char after last memory byte written
+ *  or NULL on error (cannot write memory)
+ */
+seL4_Word inf_hex2mem(inferior_t *inferior, char *buf, seL4_Word mem, int size)
+{
+    int i;
+    unsigned char c;
+
+    seL4_Word curr_word = 0;
+    for (i = 0; i < size; i++, mem++) {
+        if (i % sizeof(seL4_Word) == 0) {
+            readWordFromVSpace_ret_t ret = readWordFromVSpace(inferior->tcb, mem);
+            if (ret.status != EXCEPTION_NONE) {
+                return 0;
+            }
+
+            curr_word = ret.value;
+        }
+
+        c = hexchar_to_int(*buf++) << 4;
+        c += hexchar_to_int(*buf++);
+        *(((char *) &curr_word) + (i % sizeof(seL4_Word))) = c;
+
+        if (i % sizeof(seL4_Word) == sizeof(seL4_Word) - 1 || i == size - 1) {
+            writeWordToVSpace(vspaceRootCap, mem + (i/sizeof(seL4_Word)), curr_word);
+            mem += sizeof(seL4_Word);
+        }
+    }
+
+    return (mem + i);
 }

@@ -42,6 +42,30 @@ typedef struct inferior {
     bool ss_enabled;
 } inferior_t;
 
+bool set_software_breakpoint(inferior_t *inferior, seL4_Word address);
+bool unset_software_breakpoint(inferior_t *inferior, seL4_Word address);
+
+bool set_hardware_breakpoint(inferior_t *inferior, seL4_Word address);
+bool unset_hardware_breakpoint(inferior_t *inferior, seL4_Word address);
+
+bool set_hardware_watchpoint(inferior_t *inferior, seL4_Word address,
+                             seL4_BreakpointAccess type);
+bool unset_hardware_watchpoint(inferior_t *inferior, seL4_Word address,
+                               seL4_BreakpointAccess type);
+
+bool enable_single_step(inferior_t *inferior);
+bool disable_single_step(inferior_t *inferior);
+
+/* Convert registers to a hex string */
+char *regs2hex(seL4_UserContext *regs, char *buf);
+
+/* Convert registers to a hex string */
+char *hex2regs(seL4_UserContext *regs, char *buf);
+
+char *inf_mem2hex(inferior_t *inferior, seL4_Word mem, char *buf, int size);
+seL4_Word inf_hex2mem(inferior_t *inferior, char *buf, seL4_Word mem, int size);
+
+
 int gdb_register_initial(microkit_id id, char* elf_name);
 int gdb_register_inferior(microkit_id id, char *elf_name);
 void gdb_event_loop();

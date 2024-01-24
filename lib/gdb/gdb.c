@@ -173,6 +173,36 @@ static void handle_query(char *ptr) {
     }
 }
 
+/* Expected string is of the form [Mm][a-fA-F0-9]{sizeof(seL4_Word) * 2},[a-fA-F0-9] +*/
+static bool parse_mem_format(char *ptr, seL4_Word *addr, seL4_Word *size)
+{
+    *addr = 0;
+    *size = 0;
+    bool is_read = true;
+
+    /* Are we dealing with a memory read or a memory write? */
+    if (*ptr++ == 'M') {
+        is_read = false;
+    }
+
+    /* Parse the address */
+    ptr = hexstr_to_int(ptr, sizeof(seL4_Word) * 2, addr);
+    if (*ptr++ != ',') {
+        return false;
+    }
+
+    /* Parse the size */
+    ptr = hexstr_to_int(ptr, sizeof(seL4_Word) * 2, size);
+
+    /* Check that we have reached the end of the string */
+    if (is_read) {
+        // strlcpy(output, "E01", 4);
+        return (*ptr == 0);
+    } else {
+        return (*ptr == 0 || *ptr == ':');
+    }
+}
+
 static bool parse_breakpoint_format(char *ptr, seL4_Word *addr, seL4_Word *kind)
 {
     /* Parse the first three characters */
@@ -314,6 +344,106 @@ int gdb_register_inferior(microkit_id id, char *elf_name) {
     return 0;
 }
 
+static void handle_read_mem(char *ptr) {
+    seL4_Word addr, size;
+
+    if (!parse_mem_format(ptr, &addr, &size)) {
+        /* Error parsing input */
+        strlcpy(output, "E01", sizeof(output));
+    } else if (size * 2 > sizeof(output) - 1) {
+        /* Buffer too small? Don't really get this */
+        strlcpy(output, "E01", sizeof(output));
+    } else {
+        if (inf_mem2hex(target_inferior, addr, output, size) == NULL) {
+            /* Failed to read the memory at the location */
+            strlcpy(output, "E04", sizeof(output));
+        }
+    }
+}
+
+static void handle_write_mem(char *ptr) {
+    seL4_Word addr, size;
+
+    if (!parse_mem_format(ptr, &addr, &size)) {
+        strlcpy(output, "E02", sizeof(output));
+    } else {
+        if ((ptr = memchr(input, ':', BUFSIZE))) {
+            ptr++;
+            if (inf_hex2mem(target_inferior, ptr, addr, size) == 0) {
+                strlcpy(output, "E03", sizeof(output));
+            } else {
+                strlcpy(output, "OK", sizeof(output));
+            }
+        }
+    }
+}
+
+static int parse_thread_id(char *ptr, int *proc_id) {
+    int size = 0;
+    if (*ptr++ != 'p') {
+        return -1;
+    }
+
+    char *ptr_tmp = ptr;
+    if (strncmp(ptr, "-1", 3) == 0) {
+        *proc_id = -1;
+        return 0;
+    }
+
+    while (*ptr_tmp++ != '.') {
+        size++;
+    }
+
+    /* 2 hex chars per byte */
+    size /= 2;
+
+    if (size == 0) {
+        // @alwin: Double check this
+        *proc_id = hexchar_to_int(*ptr);
+    } else {
+        hex2mem(ptr, (char *) proc_id, size);
+    }
+
+    ptr = ptr_tmp;
+    if (*ptr != '0' && *ptr != '1') {
+        return -1;
+    }
+
+    return 0;
+}
+
+static void handle_set_inferior(char *ptr) {
+    int proc_id = 0;
+
+    assert(*ptr++ = 'H');
+
+    if (*ptr != 'g' && *ptr != 'c') {
+        strlcpy(output, "E01", sizeof(output));
+        return;
+    }
+    ptr++;
+
+    if (parse_thread_id(ptr, &proc_id) == -1) {
+        strlcpy(output, "E01", sizeof(output));
+        return;
+    }
+
+    if (proc_id != -1 && proc_id != 0) {
+        assert(inferiors[proc_id - 1].gdb_id == proc_id);
+        target_inferior = &inferiors[proc_id - 1];
+    }
+
+    /* @alwin : figure out what to do when proc_id is 0 */
+
+    if (target_inferior->tcb == 0) {
+        /* @alwin: todo, figure this out */
+        (void) proc_id;
+    }
+
+    strlcpy(output, "OK", sizeof(output));
+}
+
+
 void gdb_event_loop() {
     char *ptr;
 
@@ -342,7 +472,7 @@ void gdb_event_loop() {
         } else if (*ptr == 'q') {
             handle_query(ptr);
         } else if (*ptr == 'H') {
-            handle_set_thread(ptr);
+            handle_set_inferior(ptr);
         } else if (*ptr == '?') {
             /* TODO: This should eventually report more reasons than swbreak */
             strlcpy(output, "T05swbreak:;", sizeof(output));
