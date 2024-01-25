@@ -5,7 +5,7 @@
 #include <gdb.h>
 #include <arch/arm/64/gdb.h>
 #include <util.h>
-#include <string.h>
+#include <sel4/constants.h>
 
 #define BUFSIZE 1024
 #define MAX_PDS 64
@@ -302,7 +302,7 @@ int gdb_register_initial(microkit_id id, char* elf_name) {
     inferiors[0].micro_id = id;
     inferiors[0].gdb_id = 1;
     inferiors[0].tcb = BASE_TCB_CAP + id;
-    strncpy(inferiors[0].elf_name, elf_name, MAX_ELF_NAME);
+    strlcpy(inferiors[0].elf_name, elf_name, MAX_ELF_NAME);
     target_inferior = &inferiors[0];
     num_threads = 1;
     return 0;
@@ -323,7 +323,7 @@ int gdb_register_inferior(microkit_id id, char *elf_name) {
     uint16_t gdb_id = idx + 1;
     inferiors[idx].micro_id = id;
     inferiors[idx].gdb_id = gdb_id;
-    strncpy(inferiors[idx].elf_name, elf_name, MAX_ELF_NAME);
+    strlcpy(inferiors[idx].elf_name, elf_name, MAX_ELF_NAME);
 
     /* Indicate that the initial thread has forked */
     inferiors[idx].tcb = inferiors[INITIAL_INFERIOR_POS].tcb;
@@ -487,5 +487,91 @@ void gdb_event_loop() {
         }
 
         gdb_put_packet(output);
+    }
+}
+
+static void handle_ss_hwbreak_swbreak_exception(microkit_id ch, seL4_Word reason) {
+    strlcpy(output, "T05thread:p", sizeof(output));
+
+    // @alwin: is this really necessary?
+    uint8_t i = 0;
+    for (i = 0; i < MAX_PDS; i++) {
+        if (inferiors[i].micro_id == ch) break;
+    }
+
+    assert(i != MAX_PDS);
+    /* @alwin: This is ugly, fix it */
+    char *ptr = mem2hex((char *) &i, output + strnlen(output, sizeof(output)), sizeof(uint8_t));
+    if (reason == seL4_SoftwareBreakRequest) {
+        strlcpy(ptr, ".1;swbreak:;", sizeof(output));
+    } else {
+        strlcpy(ptr, ".1;hwbreak:;", sizeof(output));
+    }
+    gdb_put_packet(output);
+}
+
+static void handle_watchpoint_exception(microkit_id ch, seL4_Word bp_num, seL4_Word trigger_address) {
+    strlcpy(output, "T05thread:p", sizeof(output));
+
+    // @alwin: is this really necessary?
+    uint8_t i = 0;
+    for (i = 0; i < MAX_PDS; i++) {
+        if (inferiors[i].micro_id == ch) break;
+    }
+
+    assert(i != MAX_PDS);
+    char *ptr = mem2hex((char *) &i, output + strnlen(output, sizeof(output)), sizeof(uint8_t));
+    switch (inferiors[i].hardware_watchpoints[bp_num - seL4_FirstWatchpoint].type) {
+        case seL4_BreakOnWrite:
+            strlcpy(ptr, ".1;watch:", sizeof(output));
+            break;
+        case seL4_BreakOnRead:
+            strlcpy(ptr, ".1;rwatch:", sizeof(output));
+            break;
+        case seL4_BreakOnReadWrite:
+            strlcpy(ptr, ".1;awatch:", sizeof(output));
+            break;
+        default:
+            assert(0);
+    }
+
+    seL4_Word vaddr_be = arch_to_big_endian(trigger_address);
+    ptr = mem2hex((char *) &vaddr_be, output + strnlen(output, sizeof(output)), sizeof(seL4_Word));
+    strlcpy(ptr, ";", sizeof(output));
+    gdb_put_packet(output);
+}
+
+static void handle_debug_exception(microkit_id ch, microkit_msginfo msginfo) {
+    seL4_Word reason = microkit_mr_get(seL4_DebugException_ExceptionReason);
+    seL4_Word fault_ip = microkit_mr_get(seL4_DebugException_FaultIP);
+    seL4_Word trigger_address = microkit_mr_get(seL4_DebugException_TriggerAddress);
+    seL4_Word bp_num = microkit_mr_get(seL4_DebugException_BreakpointNumber);
+
+    switch (reason) {
+        case seL4_InstructionBreakpoint:
+        case seL4_SingleStep:
+        case seL4_SoftwareBreakRequest:
+            handle_ss_hwbreak_swbreak_exception(ch, reason);
+            break;
+        case seL4_DataBreakpoint:
+            handle_watchpoint_exception(ch, bp_num, trigger_address);
+            break;
+    }
+
+    gdb_event_loop();
+    // @alwin: We need to reply with something to wake the thread back up.
+    /* In the case that this is a single step exception, we need to reconfigure
+     * or disable single step based on what happened in kgdb_handler. */
+}
+
+static void handle_fault() {
+
+}
+
+void gdb_handle_fault(microkit_id ch, microkit_msginfo msginfo) {
+    if (microkit_msginfo_get_label(msginfo) == seL4_Fault_DebugException) {
+        handle_debug_exception(ch, msginfo);
+    } else {
+        handle_fault(ch, msginfo);
     }
 }

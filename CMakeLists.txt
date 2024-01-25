@@ -34,9 +34,10 @@ add_subdirectory(lib/util)
 
 add_subdirectory(apps/ping)
 add_subdirectory(apps/pong)
+add_subdirectory(apps/debugger)
 
 add_custom_target(image ALL # OUTPUT ${IMAGE_FILE}
                    COMMAND ${MICROKIT_TOOL} ${CMAKE_SOURCE_DIR}/example.system --search-path ${EXECUTABLE_OUTPUT_PATH}
                             --board ${BOARD} --config ${MICROKIT_CONFIG} -o ${IMAGE_FILE} -r ${REPORT_FILE}
-                   DEPENDS ping.elf pong.elf
+                   DEPENDS ping.elf pong.elf debugger.elf
         )

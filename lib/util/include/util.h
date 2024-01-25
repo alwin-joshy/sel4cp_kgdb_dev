@@ -9,7 +9,7 @@
 
 #include <stdint.h>
 #include <microkit.h>
-#include "../../printf/include/printf.h"
+#include <printf.h>
 
 // @ivanv: these are here for convience, should not be here though
 #define GUEST_ID 0
@@ -188,6 +188,12 @@ static void assert_fail(
             assert_fail(#expr, __FILE__, __LINE__, __FUNCTION__); \
         } \
     } while(0)
+
+#define UCHAR_MAX 255
+seL4_Word strlcpy(char *dest, const char *src, seL4_Word size);
+int PURE strncmp(const char *s1, const char *s2, int n);
+seL4_Word strnlen(const char *s, seL4_Word maxlen);
+void *memchr (const void *s, int c, seL4_Word size);
 
 int hexchar_to_int(unsigned char c);
 unsigned char int_to_hexchar(int i);

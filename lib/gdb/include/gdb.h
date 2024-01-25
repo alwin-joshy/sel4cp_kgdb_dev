@@ -65,8 +65,9 @@ char *hex2regs(seL4_UserContext *regs, char *buf);
 char *inf_mem2hex(inferior_t *inferior, seL4_Word mem, char *buf, int size);
 seL4_Word inf_hex2mem(inferior_t *inferior, char *buf, seL4_Word mem, int size);
 
-
 int gdb_register_initial(microkit_id id, char* elf_name);
 int gdb_register_inferior(microkit_id id, char *elf_name);
+
+void gdb_handle_fault(microkit_id ch, microkit_msginfo msginfo);
 void gdb_event_loop();
 

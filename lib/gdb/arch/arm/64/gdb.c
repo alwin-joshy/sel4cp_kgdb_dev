@@ -193,8 +193,8 @@ bool disable_single_step(inferior_t *inferior) {
     for (i = 0; i < size; i++) {
         if (i % sizeof(seL4_Word) == 0) {
             // @alwin: I think this should actually use a vspace cap
-            readWordFromVSpace_ret_t ret = readWordFromVSpace(inferior->tcb, mem);
-            if (ret.status != EXCEPTION_NONE) {
+            seL4_ARM_VSpace_Read_Word_t ret = seL4_ARM_VSpace_Read_Word(inferior->tcb, mem);
+            if (ret.error) {
                 return NULL;
             }
 
@@ -223,9 +223,9 @@ seL4_Word inf_hex2mem(inferior_t *inferior, char *buf, seL4_Word mem, int size)
     seL4_Word curr_word = 0;
     for (i = 0; i < size; i++, mem++) {
         if (i % sizeof(seL4_Word) == 0) {
-            readWordFromVSpace_ret_t ret = readWordFromVSpace(inferior->tcb, mem);
-            if (ret.status != EXCEPTION_NONE) {
-                return 0;
+            seL4_ARM_VSpace_Read_Word_t ret = seL4_ARM_VSpace_Read_Word(inferior->tcb, mem);
+            if (ret.error) {
+                return (mem + i);
             }
 
             curr_word = ret.value;
@@ -236,7 +236,10 @@ seL4_Word inf_hex2mem(inferior_t *inferior, char *buf, seL4_Word mem, int size)
         *(((char *) &curr_word) + (i % sizeof(seL4_Word))) = c;
 
         if (i % sizeof(seL4_Word) == sizeof(seL4_Word) - 1 || i == size - 1) {
-            writeWordToVSpace(vspaceRootCap, mem + (i/sizeof(seL4_Word)), curr_word);
+            int err = seL4_ARM_VSpace_Write_Word(inferior->tcb, mem + (i/sizeof(seL4_Word)), curr_word);
+            if (err) {
+                return (mem + i);
+            }
             mem += sizeof(seL4_Word);
         }
     }

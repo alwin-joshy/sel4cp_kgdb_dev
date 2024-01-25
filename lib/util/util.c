@@ -5,6 +5,7 @@
  */
 
 #include "include/util.h"
+#include <microkit.h>
 
 static char hexchars[] = "0123456789abcdef";
 
@@ -28,6 +29,60 @@ void __assert_func(const char *file, int line, const char *function, const char 
     microkit_dbg_puts("\n");
     while (1) {}
 }
+
+seL4_Word strlcpy(char *dest, const char *src, seL4_Word size)
+{
+    seL4_Word len;
+    for (len = 0; len + 1 < size && src[len]; len++) {
+        dest[len] = src[len];
+    }
+    dest[len] = '\0';
+    return len;
+}
+
+int PURE strncmp(const char *s1, const char *s2, int n)
+{
+    seL4_Word i;
+    int diff;
+
+    for (i = 0; i < n; i++) {
+        diff = ((unsigned char *)s1)[i] - ((unsigned char *)s2)[i];
+        if (diff != 0 || s1[i] == '\0') {
+            return diff;
+        }
+    }
+
+    return 0;
+}
+
+seL4_Word strnlen(const char *s, seL4_Word maxlen)
+{
+    seL4_Word len;
+    for (len = 0; len < maxlen && s[len]; len++);
+    return len;
+}
+
+#define SS (sizeof(seL4_Word))
+#define ALIGN_MEMCHR (sizeof(seL4_Word)-1)
+#define ONES ((seL4_Word)-1/UCHAR_MAX)
+#define HIGHS (ONES * (UCHAR_MAX/2+1))
+#define HASZERO(x) (((x)-ONES) & ~(x) & HIGHS)
+
+void *memchr(const void *src, int c, seL4_Word n)
+{
+    const unsigned char *s = src;
+    c = (unsigned char)c;
+    for (; ((seL4_Word)s & ALIGN_MEMCHR) && n && *s != c; s++, n--);
+    if (n && *s != c) {
+        const seL4_Word *w;
+        seL4_Word k = ONES * c;
+        for (w = (const void *)s; n>=SS && !HASZERO(*w ^ k); w++, n-=SS);
+        for (s = (const void *)w; n && *s != c; s++, n--);
+    }
+    return n ? (void *)s : 0;
+}
+
+
 
 /* Convert a character (representing a hexadecimal) to its integer equivalent */
 int hexchar_to_int(unsigned char c)
