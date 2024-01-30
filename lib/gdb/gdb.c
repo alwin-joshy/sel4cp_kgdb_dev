@@ -555,16 +555,13 @@ static void handle_watchpoint_exception(uint8_t id, seL4_Word bp_num, seL4_Word 
     gdb_put_packet(output);
 }
 
-static bool handle_debug_exception(uint8_t id, microkit_msginfo msginfo, seL4_Word *reply_mr) {
-    seL4_Word reason = microkit_mr_get(seL4_DebugException_ExceptionReason);
-    seL4_Word fault_ip = microkit_mr_get(seL4_DebugException_FaultIP);
-    seL4_Word trigger_address = microkit_mr_get(seL4_DebugException_TriggerAddress);
-    seL4_Word bp_num = microkit_mr_get(seL4_DebugException_BreakpointNumber);
+static bool handle_debug_exception(uint8_t id, seL4_Word *reply_mr) {
+    seL4_Word reason = seL4_GetMR(seL4_DebugException_ExceptionReason);
+    seL4_Word fault_ip = seL4_GetMR(seL4_DebugException_FaultIP);
+    seL4_Word trigger_address = seL4_GetMR(seL4_DebugException_TriggerAddress);
+    seL4_Word bp_num = seL4_GetMR(seL4_DebugException_BreakpointNumber);
 
     bool single_step_reply = false;
-
-    gdb_put_packet(output);
-
     switch (reason) {
         case seL4_InstructionBreakpoint:
         case seL4_SingleStep:
@@ -596,18 +593,14 @@ static bool handle_debug_exception(uint8_t id, microkit_msginfo msginfo, seL4_Wo
      * or disable single step based on what happened in kgdb_handler. */
 }
 
-static void handle_fault() {
+static void handle_fault(uint8_t id, seL4_Word exception_reason) {
     // #@alwin: we should probably notify gdb that a fault occured so they can debug the thread
 }
 
-int gdb_handle_fault(uint8_t id, microkit_msginfo msginfo, seL4_Word *reply_mr) {
-    if (microkit_msginfo_get_label(msginfo) == seL4_Fault_DebugException) {
-        return handle_debug_exception(id, msginfo, reply_mr);
+int gdb_handle_fault(uint8_t id, seL4_Word exception_reason, seL4_Word *reply_mr) {
+    if (exception_reason  == seL4_Fault_DebugException) {
+        return handle_debug_exception(id, reply_mr);
     } else {
-        strlcpy(output, "test", sizeof(output));
-        output[4] = microkit_msginfo_get_label(msginfo) + '0';
-        output[5] = 0;
-        gdb_put_packet(output);
         handle_fault(id, msginfo);
     }
 

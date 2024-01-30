@@ -24,7 +24,7 @@ void init() {
 
 void fault(microkit_channel ch, microkit_msginfo msginfo) {
     seL4_Word reply_mr = 0;
-    int n_reply = gdb_handle_fault(ch, msginfo, &reply_mr);
+    int n_reply = gdb_handle_fault(ch, microkit_msginfo_get_label(msginfo), &reply_mr);
     if (n_reply >= 0) {
         if (n_reply == 1) {
             microkit_mr_set(0, reply_mr);
