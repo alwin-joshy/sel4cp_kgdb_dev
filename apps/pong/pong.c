@@ -16,7 +16,7 @@ void notified(microkit_channel ch) {
 
 void init() {
 	uart_init();
-	uart_put_str("Hi! I'm PONG!\n");
+//	uart_put_str("Hi! I'm PONG!\n");
     // microkit_notify(300);
     // arm_sys_null(seL4_SysDebugEnterKGDB);
 }

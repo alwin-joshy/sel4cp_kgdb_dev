@@ -26,21 +26,27 @@ typedef struct hw_breakpoint {
 /* Bookkeeping for software breakpoints */
 typedef struct sw_breakpoint {
     uint64_t addr;
-    uint32_t orig_instr;
+    uint64_t orig_word;
 } sw_break_t;
 
 /* GDB uses 'inferiors' to distinguish between different processes (in our case PDs) */
 typedef struct inferior {
-    microkit_id micro_id;
+    uint8_t id;
     /* The id in GDB cannot be 0, because this has a special meaning in GDB */
     uint16_t gdb_id;
     seL4_CPtr tcb;
+    seL4_CPtr vspace;
     char elf_name[MAX_ELF_NAME];
     sw_break_t software_breakpoints[MAX_SW_BREAKS];
     hw_break_t hardware_breakpoints[seL4_NumExclusiveBreakpoints];
     hw_watch_t hardware_watchpoints[seL4_NumExclusiveWatchpoints];
     bool ss_enabled;
 } inferior_t;
+
+typedef enum continue_type {
+    ctype_continue = 0,
+    ctype_ss,
+} cont_type_t;
 
 bool set_software_breakpoint(inferior_t *inferior, seL4_Word address);
 bool unset_software_breakpoint(inferior_t *inferior, seL4_Word address);
@@ -62,12 +68,12 @@ char *regs2hex(seL4_UserContext *regs, char *buf);
 /* Convert registers to a hex string */
 char *hex2regs(seL4_UserContext *regs, char *buf);
 
-char *inf_mem2hex(inferior_t *inferior, seL4_Word mem, char *buf, int size);
+char *inf_mem2hex(inferior_t *inferior, seL4_Word mem, char *buf, int size, seL4_Word *error);
 seL4_Word inf_hex2mem(inferior_t *inferior, char *buf, seL4_Word mem, int size);
 
-int gdb_register_initial(microkit_id id, char* elf_name);
-int gdb_register_inferior(microkit_id id, char *elf_name);
+int gdb_register_initial(uint8_t id, char* elf_name, seL4_CPtr tcb, seL4_CPtr vspace);
+int gdb_register_inferior(uint8_t id, char *elf_name, seL4_CPtr tcb, seL4_CPtr vspace);
+int gdb_handle_fault(uint8_t id, microkit_msginfo msginfo, seL4_Word *reply_mr);
 
-void gdb_handle_fault(microkit_id ch, microkit_msginfo msginfo);
-void gdb_event_loop();
+cont_type_t gdb_event_loop();
 

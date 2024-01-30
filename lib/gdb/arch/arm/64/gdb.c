@@ -2,6 +2,12 @@
 #include <gdb.h>
 #include <util.h>
 
+/* Software breakpoint related stuff */
+#define AARCH64_BREAK_MON   0xd4200000
+#define KGDB_DYN_DBG_BRK_IMM        0x400
+#define AARCH64_BREAK_KGDB_DYN_DBG  \
+    (AARCH64_BREAK_MON | (KGDB_DYN_DBG_BRK_IMM << 5))
+
 /* Convert registers to a hex string */
 // @alwin: This is rather unpleasant, but the way the seL4_UserContext struct is formatted is annoying
 char *regs2hex(seL4_UserContext *regs, char *buf)
@@ -13,6 +19,7 @@ char *regs2hex(seL4_UserContext *regs, char *buf)
     buf = mem2hex((char *) &regs->x3, buf, sizeof(seL4_Word));
     buf = mem2hex((char *) &regs->x4, buf, sizeof(seL4_Word));
     buf = mem2hex((char *) &regs->x5, buf, sizeof(seL4_Word));
+    buf = mem2hex((char *) &regs->x6, buf, sizeof(seL4_Word));
     buf = mem2hex((char *) &regs->x7, buf, sizeof(seL4_Word));
     buf = mem2hex((char *) &regs->x8, buf, sizeof(seL4_Word));
     buf = mem2hex((char *) &regs->x9, buf, sizeof(seL4_Word));
@@ -93,12 +100,47 @@ char *hex2regs(seL4_UserContext *regs, char *buf)
     return buf;
 }
 
-// @alwin: finish this off
 bool set_software_breakpoint(inferior_t *inferior, seL4_Word address) {
-    return true;
+    sw_break_t tmp;
+    tmp.addr = address;
+
+    seL4_ARM_VSpace_Read_Word_t ret = seL4_ARM_VSpace_Read_Word(inferior->vspace, address);
+    if (ret.error) {
+        return false;
+    }
+    tmp.orig_word = ret.value;
+
+    /* Overwrite the address with the instruction but preserve everything else */
+    ret.value = (seL4_Word) AARCH64_BREAK_KGDB_DYN_DBG | (0xFFFFFFFF00000000 & ret.value);
+
+    if (seL4_ARM_VSpace_Write_Word(inferior->vspace, address, ret.value)) {
+        return false;
+    }
+
+    int i = 0;
+    for (i = 0; i < MAX_SW_BREAKS; i++) {
+        if (inferior->software_breakpoints[i].addr == 0) {
+            inferior->software_breakpoints[i] = tmp;
+            return true;
+        }
+    }
+
+    /* Too many sw breakpoints have been set */
+    // @alwin: return value
+    seL4_ARM_VSpace_Write_Word(inferior->vspace, address, tmp.orig_word);
+    return false;
 }
 
 bool unset_software_breakpoint(inferior_t *inferior, seL4_Word address) {
+    int i = 0;
+
+    for (i = 0; i < MAX_SW_BREAKS; i++) {
+        if (inferior->software_breakpoints[i].addr) {
+            return (seL4_ARM_VSpace_Write_Word(inferior->vspace, address, inferior->software_breakpoints[i].orig_word) == 0);
+        }
+    }
+
+    /* @alwin: this is kind of a hack to account for a fork but I think it is fairly benign? */
     return true;
 }
 
@@ -184,7 +226,7 @@ bool disable_single_step(inferior_t *inferior) {
     return true;
 }
 
- char *inf_mem2hex(inferior_t *inferior, seL4_Word mem, char *buf, int size)
+ char *inf_mem2hex(inferior_t *inferior, seL4_Word mem, char *buf, int size, seL4_Word *error)
 {
     int i;
     unsigned char c;
@@ -193,8 +235,9 @@ bool disable_single_step(inferior_t *inferior) {
     for (i = 0; i < size; i++) {
         if (i % sizeof(seL4_Word) == 0) {
             // @alwin: I think this should actually use a vspace cap
-            seL4_ARM_VSpace_Read_Word_t ret = seL4_ARM_VSpace_Read_Word(inferior->tcb, mem);
+            seL4_ARM_VSpace_Read_Word_t ret = seL4_ARM_VSpace_Read_Word(inferior->vspace, mem);
             if (ret.error) {
+                *error = ret.error;
                 return NULL;
             }
 
@@ -223,7 +266,7 @@ seL4_Word inf_hex2mem(inferior_t *inferior, char *buf, seL4_Word mem, int size)
     seL4_Word curr_word = 0;
     for (i = 0; i < size; i++, mem++) {
         if (i % sizeof(seL4_Word) == 0) {
-            seL4_ARM_VSpace_Read_Word_t ret = seL4_ARM_VSpace_Read_Word(inferior->tcb, mem);
+            seL4_ARM_VSpace_Read_Word_t ret = seL4_ARM_VSpace_Read_Word(inferior->vspace, mem);
             if (ret.error) {
                 return (mem + i);
             }
@@ -236,7 +279,7 @@ seL4_Word inf_hex2mem(inferior_t *inferior, char *buf, seL4_Word mem, int size)
         *(((char *) &curr_word) + (i % sizeof(seL4_Word))) = c;
 
         if (i % sizeof(seL4_Word) == sizeof(seL4_Word) - 1 || i == size - 1) {
-            int err = seL4_ARM_VSpace_Write_Word(inferior->tcb, mem + (i/sizeof(seL4_Word)), curr_word);
+            int err = seL4_ARM_VSpace_Write_Word(inferior->vspace, mem + (i/sizeof(seL4_Word)), curr_word);
             if (err) {
                 return (mem + i);
             }

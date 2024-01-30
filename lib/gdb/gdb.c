@@ -7,6 +7,7 @@
 #include <util.h>
 #include <sel4/constants.h>
 
+//#define DEBUG_PRINTS 1
 #define BUFSIZE 1024
 #define MAX_PDS 64
 #define MAX_ID 255
@@ -112,9 +113,8 @@ static void gdb_put_packet(char *buf)
         uart_put_char('#');
         uart_put_char(int_to_hexchar(cksum >> 4));
         uart_put_char(int_to_hexchar(cksum % 16));
-        if (uart_get_char() == '+') {
-            break;
-        }
+        char c = uart_get_char();
+        if (c == '+') break;
     }
 }
 
@@ -287,7 +287,7 @@ static void handle_configure_debug_events(char *ptr) {
     }
 }
 
-int gdb_register_initial(microkit_id id, char* elf_name) {
+int gdb_register_initial(uint8_t id, char* elf_name, seL4_CPtr tcb, seL4_CPtr vspace) {
     /* If this isn't the first thread that was initialized */
     if (num_threads != 0 || inferiors[num_threads].tcb != 0) {
         return -1;
@@ -299,16 +299,17 @@ int gdb_register_initial(microkit_id id, char* elf_name) {
         return -1;
     }
 
-    inferiors[0].micro_id = id;
-    inferiors[0].gdb_id = 1;
-    inferiors[0].tcb = BASE_TCB_CAP + id;
-    strlcpy(inferiors[0].elf_name, elf_name, MAX_ELF_NAME);
-    target_inferior = &inferiors[0];
+    inferiors[INITIAL_INFERIOR_POS].id = id;
+    inferiors[INITIAL_INFERIOR_POS].gdb_id = 1;
+    inferiors[INITIAL_INFERIOR_POS].tcb = tcb;
+    inferiors[INITIAL_INFERIOR_POS].vspace = vspace;
+    strlcpy(inferiors[INITIAL_INFERIOR_POS].elf_name, elf_name, MAX_ELF_NAME);
+    target_inferior = &inferiors[INITIAL_INFERIOR_POS];
     num_threads = 1;
     return 0;
 }
 
-int gdb_register_inferior(microkit_id id, char *elf_name) {
+int gdb_register_inferior(uint8_t id, char *elf_name, seL4_CPtr tcb, seL4_CPtr vspace) {
     /* Must already have one thread that has been registered */
     if (num_threads < 1 || inferiors[0].tcb == 0) {
         return -1;
@@ -321,12 +322,13 @@ int gdb_register_inferior(microkit_id id, char *elf_name) {
 
     uint8_t idx = num_threads++;
     uint16_t gdb_id = idx + 1;
-    inferiors[idx].micro_id = id;
+    inferiors[idx].id = id;
     inferiors[idx].gdb_id = gdb_id;
     strlcpy(inferiors[idx].elf_name, elf_name, MAX_ELF_NAME);
 
     /* Indicate that the initial thread has forked */
     inferiors[idx].tcb = inferiors[INITIAL_INFERIOR_POS].tcb;
+    inferiors[idx].vspace = inferiors[INITIAL_INFERIOR_POS].vspace;
     strlcpy(output, "T05fork:p", sizeof(output));
     char *buf = mem2hex((char *) &gdb_id, output + strnlen(output, BUFSIZE), sizeof(uint8_t));
     strlcpy(buf, ".1;", BUFSIZE - strnlen(output, BUFSIZE));
@@ -335,9 +337,10 @@ int gdb_register_inferior(microkit_id id, char *elf_name) {
 
     /* Indicate that the new thread is execing something */
     strlcpy(output, "T05exec:", BUFSIZE);
-    buf = mem2hex(elf_name, output + strnlen(output, BUFSIZE), BUFSIZE - strnlen(output, BUFSIZE));
+    buf = mem2hex(elf_name, output + strnlen(output, BUFSIZE), strnlen(elf_name, BUFSIZE - strnlen(output, BUFSIZE)));
     strlcpy(buf, ";", BUFSIZE - strnlen(output, BUFSIZE));
-    inferiors[idx].tcb = BASE_TCB_CAP + id;
+    inferiors[idx].tcb = tcb;
+    inferiors[idx].vspace = vspace;
     gdb_put_packet(output);
     gdb_event_loop();
 
@@ -345,7 +348,7 @@ int gdb_register_inferior(microkit_id id, char *elf_name) {
 }
 
 static void handle_read_mem(char *ptr) {
-    seL4_Word addr, size;
+    seL4_Word addr, size, error;
 
     if (!parse_mem_format(ptr, &addr, &size)) {
         /* Error parsing input */
@@ -354,9 +357,12 @@ static void handle_read_mem(char *ptr) {
         /* Buffer too small? Don't really get this */
         strlcpy(output, "E01", sizeof(output));
     } else {
-        if (inf_mem2hex(target_inferior, addr, output, size) == NULL) {
+        if (inf_mem2hex(target_inferior, addr, output, size, &error) == NULL) {
             /* Failed to read the memory at the location */
-            strlcpy(output, "E04", sizeof(output));
+//            strlcpy(output, "E04", sizeof(output));
+            strlcpy(output, "E0", sizeof(output));
+            output[2] = error + '0';
+            output[3] = 0;
         }
     }
 }
@@ -429,6 +435,7 @@ static void handle_set_inferior(char *ptr) {
     }
 
     if (proc_id != -1 && proc_id != 0) {
+        // @alwin: this is not a good assertion
         assert(inferiors[proc_id - 1].gdb_id == proc_id);
         target_inferior = &inferiors[proc_id - 1];
     }
@@ -444,8 +451,9 @@ static void handle_set_inferior(char *ptr) {
 }
 
 
-void gdb_event_loop() {
+cont_type_t gdb_event_loop() {
     char *ptr;
+    int stepping;
 
     while (1) {
         ptr = gdb_get_packet();
@@ -459,7 +467,7 @@ void gdb_event_loop() {
         } else if (*ptr == 'M') {
             handle_write_mem(ptr);
         } else if (*ptr == 'c' || *ptr == 's') {
-            int stepping = *ptr == 's' ? 1 : 0;
+            stepping = *ptr == 's' ? 1 : 0;
             ptr++;
 
             if (stepping) {
@@ -468,6 +476,7 @@ void gdb_event_loop() {
                 disable_single_step(target_inferior);
             }
             /* TODO: Support continue from an address and single step */
+
             break;
         } else if (*ptr == 'q') {
             handle_query(ptr);
@@ -488,39 +497,44 @@ void gdb_event_loop() {
 
         gdb_put_packet(output);
     }
+
+    return stepping;
 }
 
-static void handle_ss_hwbreak_swbreak_exception(microkit_id ch, seL4_Word reason) {
+static bool handle_ss_hwbreak_swbreak_exception(uint8_t id, seL4_Word reason) {
     strlcpy(output, "T05thread:p", sizeof(output));
 
     // @alwin: is this really necessary?
     uint8_t i = 0;
     for (i = 0; i < MAX_PDS; i++) {
-        if (inferiors[i].micro_id == ch) break;
+        if (inferiors[i].id == id) break;
     }
 
     assert(i != MAX_PDS);
     /* @alwin: This is ugly, fix it */
-    char *ptr = mem2hex((char *) &i, output + strnlen(output, sizeof(output)), sizeof(uint8_t));
+    char *ptr = mem2hex((char *) &inferiors[i].gdb_id, output + strnlen(output, sizeof(output)), sizeof(uint8_t));
     if (reason == seL4_SoftwareBreakRequest) {
         strlcpy(ptr, ".1;swbreak:;", sizeof(output));
     } else {
         strlcpy(ptr, ".1;hwbreak:;", sizeof(output));
     }
+
     gdb_put_packet(output);
+
+    return (reason == seL4_SingleStep);
 }
 
-static void handle_watchpoint_exception(microkit_id ch, seL4_Word bp_num, seL4_Word trigger_address) {
+static void handle_watchpoint_exception(uint8_t id, seL4_Word bp_num, seL4_Word trigger_address) {
     strlcpy(output, "T05thread:p", sizeof(output));
 
     // @alwin: is this really necessary?
     uint8_t i = 0;
     for (i = 0; i < MAX_PDS; i++) {
-        if (inferiors[i].micro_id == ch) break;
+        if (inferiors[i].id == id) break;
     }
 
     assert(i != MAX_PDS);
-    char *ptr = mem2hex((char *) &i, output + strnlen(output, sizeof(output)), sizeof(uint8_t));
+    char *ptr = mem2hex((char *) &inferiors[i].gdb_id, output + strnlen(output, sizeof(output)), sizeof(uint8_t));
     switch (inferiors[i].hardware_watchpoints[bp_num - seL4_FirstWatchpoint].type) {
         case seL4_BreakOnWrite:
             strlcpy(ptr, ".1;watch:", sizeof(output));
@@ -541,37 +555,61 @@ static void handle_watchpoint_exception(microkit_id ch, seL4_Word bp_num, seL4_W
     gdb_put_packet(output);
 }
 
-static void handle_debug_exception(microkit_id ch, microkit_msginfo msginfo) {
+static bool handle_debug_exception(uint8_t id, microkit_msginfo msginfo, seL4_Word *reply_mr) {
     seL4_Word reason = microkit_mr_get(seL4_DebugException_ExceptionReason);
     seL4_Word fault_ip = microkit_mr_get(seL4_DebugException_FaultIP);
     seL4_Word trigger_address = microkit_mr_get(seL4_DebugException_TriggerAddress);
     seL4_Word bp_num = microkit_mr_get(seL4_DebugException_BreakpointNumber);
 
+    bool single_step_reply = false;
+
+    gdb_put_packet(output);
+
     switch (reason) {
         case seL4_InstructionBreakpoint:
         case seL4_SingleStep:
         case seL4_SoftwareBreakRequest:
-            handle_ss_hwbreak_swbreak_exception(ch, reason);
+            single_step_reply = handle_ss_hwbreak_swbreak_exception(id, reason);
             break;
         case seL4_DataBreakpoint:
-            handle_watchpoint_exception(ch, bp_num, trigger_address);
+            handle_watchpoint_exception(id, bp_num, trigger_address);
             break;
     }
 
-    gdb_event_loop();
+    cont_type_t cont_type = gdb_event_loop();
+
+    if (single_step_reply) {
+        if (cont_type == ctype_ss) {
+            *reply_mr = 1;
+        } else {
+            *reply_mr = 0;
+        }
+
+        return 1;
+    }
+
+    return 0;
+
+
     // @alwin: We need to reply with something to wake the thread back up.
     /* In the case that this is a single step exception, we need to reconfigure
      * or disable single step based on what happened in kgdb_handler. */
 }
 
 static void handle_fault() {
-
+    // #@alwin: we should probably notify gdb that a fault occured so they can debug the thread
 }
 
-void gdb_handle_fault(microkit_id ch, microkit_msginfo msginfo) {
+int gdb_handle_fault(uint8_t id, microkit_msginfo msginfo, seL4_Word *reply_mr) {
     if (microkit_msginfo_get_label(msginfo) == seL4_Fault_DebugException) {
-        handle_debug_exception(ch, msginfo);
+        return handle_debug_exception(id, msginfo, reply_mr);
     } else {
-        handle_fault(ch, msginfo);
+        strlcpy(output, "test", sizeof(output));
+        output[4] = microkit_msginfo_get_label(msginfo) + '0';
+        output[5] = 0;
+        gdb_put_packet(output);
+        handle_fault(id, msginfo);
     }
+
+    return 0;
 }
